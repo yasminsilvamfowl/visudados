@@ -3,44 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meu Trabalho Observable</title>
+    <title>Meu Projeto Observable</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@observablehq/inspector@5/dist/inspector.css">
 
     <style>
-        /* Um estilo simples para centralizar tudo na tela */
         body {
             font-family: sans-serif;
-            max-width: 800px;
-            margin: 2rem auto;
+            max-width: 900px; /* Largura máxima do conteúdo */
+            margin: 2rem auto; /* Centraliza na tela */
             padding: 0 1rem;
         }
         
-        /* Dá um espaço entre os gráficos */
-        div[id^="observablehq"] {
-            margin-bottom: 20px;
+        /* Espaço extra abaixo do gráfico */
+        .observable-wrapper {
+            margin-bottom: 2rem;
         }
     </style>
 </head>
 <body>
 
-    <h1>Minha Visualização de Dados</h1>
-    <p>Visualização gerada via Observable Runtime API:</p>
+    <h1>Visualização: Mapa Mundi</h1>
     <hr>
 
-    <div id="observablehq-mapamundi-d0619920"></div>
+    <div id="observablehq-mapamundi-89ac6089" class="observable-wrapper"></div>
     
-    <p>Credit: <a href="https://observablehq.com/d/4e917a78362212b6">Untitled by Visudados</a></p>
+    <p>Fonte: <a href="https://observablehq.com/d/c17b8f6fd7917ba0@88">Projeto Final by Visualidados</a></p>
 
     <script type="module">
         import {Runtime, Inspector} from "https://cdn.jsdelivr.net/npm/@observablehq/runtime@5/dist/runtime.js";
         
-        // Importa o seu notebook específico
-        import define from "https://api.observablehq.com/d/4e917a78362212b6.js?v=4";
+        // Importa o seu notebook novo
+        import define from "https://api.observablehq.com/d/c17b8f6fd7917ba0@88.js?v=4";
         
         new Runtime().module(define, name => {
-          // Se o nome da célula for "mapamundi", desenha ele na div acima
-          if (name === "mapamundi") return new Inspector(document.querySelector("#observablehq-mapamundi-d0619920"));
+          if (name === "mapamundi") return new Inspector(document.querySelector("#observablehq-mapamundi-89ac6089"));
         });
     </script>
     
