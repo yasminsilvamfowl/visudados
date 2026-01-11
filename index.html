@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Trabalho Observable</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@observablehq/inspector@5/dist/inspector.css">
+
+    <style>
+        /* Um estilo simples para centralizar tudo na tela */
+        body {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        /* Dá um espaço entre os gráficos */
+        div[id^="observablehq"] {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Minha Visualização de Dados</h1>
+    <p>Visualização gerada via Observable Runtime API:</p>
+    <hr>
+
+    <div id="observablehq-mapamundi-d0619920"></div>
+    
+    <p>Credit: <a href="https://observablehq.com/d/4e917a78362212b6">Untitled by Visudados</a></p>
+
+    <script type="module">
+        import {Runtime, Inspector} from "https://cdn.jsdelivr.net/npm/@observablehq/runtime@5/dist/runtime.js";
+        
+        // Importa o seu notebook específico
+        import define from "https://api.observablehq.com/d/4e917a78362212b6.js?v=4";
+        
+        new Runtime().module(define, name => {
+          // Se o nome da célula for "mapamundi", desenha ele na div acima
+          if (name === "mapamundi") return new Inspector(document.querySelector("#observablehq-mapamundi-d0619920"));
+        });
+    </script>
+    
+    </body>
+</html>
