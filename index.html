@@ -1,45 +1,145 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meu Projeto Observable</title>
+    <title>Cibersegurança Global: Um Relatório Visual</title>
     
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@observablehq/inspector@5/dist/inspector.css">
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
 
     <style>
         body {
-            font-family: sans-serif;
-            max-width: 900px; /* Largura máxima do conteúdo */
-            margin: 2rem auto; /* Centraliza na tela */
-            padding: 0 1rem;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
         }
+
+        .story-container {
+            display: flex;
+            position: relative;
+        }
+
+        /* COLUNA DA ESQUERDA: TEXTO (ROTEIRO) */
+        .scrolly-text {
+            width: 35%; 
+            position: relative;
+            z-index: 2;
+            margin-left: 5%; /* Um pouco de respiro */
+        }
+
+        .step {
+            height: 100vh; /* Altura da tela */
+            display: flex;
+            align-items: center;
+        }
+
+        .text-box {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border-left: 5px solid #steelblue;
+        }
+
+        .text-box h2 { margin-top: 0; color: #2c3e50; }
+        .text-box p { line-height: 1.6; font-size: 1.1rem; }
+
+        /* COLUNA DA DIREITA: GRÁFICOS (FIXOS) */
+        .sticky-chart {
+            width: 60%;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff; /* Fundo branco para destacar o gráfico */
+        }
+
+        /* ONDE O GRÁFICO REAL VAI APARECER */
+        .chart-container {
+            position: absolute;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.6s ease-in-out;
+            width: 90%;
+            display: flex;
+            justify-content: center;
+            pointer-events: none; /* Deixa o scroll passar */
+        }
+
+        /* Classe que ativa o gráfico visível */
+        .chart-container.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all; /* Permite interagir com tooltip */
+        }
+
+        /* Ajuste fino para os gráficos do Observable Plot */
+        figure { margin: 0; }
         
-        /* Espaço extra abaixo do gráfico */
-        .observable-wrapper {
-            margin-bottom: 2rem;
-        }
+        .spacer { height: 50vh; }
     </style>
 </head>
 <body>
 
-    <h1>Visualização: Mapa Mundi</h1>
-    <hr>
-
-    <div id="observablehq-mapamundi-89ac6089" class="observable-wrapper"></div>
-    
-    <p>Fonte: <a href="https://observablehq.com/d/c17b8f6fd7917ba0@88">Projeto Final by Visualidados</a></p>
-
-    <script type="module">
-        import {Runtime, Inspector} from "https://cdn.jsdelivr.net/npm/@observablehq/runtime@5/dist/runtime.js";
+    <div class="story-container">
         
-        // Importa o seu notebook novo
-        import define from "https://api.observablehq.com/d/c17b8f6fd7917ba0@88.js?v=4";
-        
-        new Runtime().module(define, name => {
-          if (name === "mapamundi") return new Inspector(document.querySelector("#observablehq-mapamundi-89ac6089"));
-        });
-    </script>
-    
-    </body>
+        <div class="scrolly-text">
+            
+            <div style="height: 50vh; display: flex; align-items: center;">
+                <h1>Relatório de Conflitos Cibernéticos<br><small style="color:gray; font-size: 1rem;">Role para começar ↓</small></h1>
+            </div>
+
+            <div class="step" data-chart="vis-temporal">
+                <div class="text-box" style="border-left-color: steelblue;">
+                    <h2>1. A Escalada dos Conflitos</h2>
+                    <p>Ao analisar os dados da última década, percebemos uma tendência clara. O número de incidentes documentados cresceu significativamente.</p>
+                    <p>Note os picos de atividade e como a frequência de ataques se intensificou nos anos mais recentes.</p>
+                </div>
+            </div>
+
+            <div class="step" data-chart="vis-mapa">
+                <div class="text-box" style="border-left-color: tomato;">
+                    <h2>2. O Mapa da Vulnerabilidade</h2>
+                    <p>O ciberespaço não tem fronteiras, mas os alvos têm. Este mapa destaca os países que mais sofreram incidentes.</p>
+                    <p>As áreas mais escuras indicam maior volume de ataques recebidos. EUA e nações europeias frequentemente aparecem como alvos primários.</p>
+                </div>
+            </div>
+
+            <div class="step" data-chart="vis-barras">
+                <div class="text-box" style="border-left-color: purple;">
+                    <h2>3. O Arsenal Digital</h2>
+                    <p>Mas como esses ataques são feitos? Não é apenas "hackear".</p>
+                    <p>Aqui vemos os métodos mais comuns (Operations Type). Espionagem, DDoS e manipulação de informações dominam o cenário.</p>
+                </div>
+            </div>
+
+             <div class="step" data-chart="vis-origem">
+                <div class="text-box" style="border-left-color: orange;">
+                    <h2>4. A Origem</h2>
+                    <p>Quem inicia as ofensivas? Ao rastrear a origem dos ataques, vemos que certos atores estatais e grupos organizados concentram a maior parte da atividade ofensiva.</p>
+                </div>
+            </div>
+
+            <div class="spacer"></div>
+        </div>
+
+        <div class="sticky-chart">
+            
+            <div id="vis-temporal" class="chart-container active"></div>
+            <div id="vis-mapa" class="chart-container"></div>
+            <div id="vis-barras" class="chart-container"></div>
+            <div id="vis-origem" class="chart-container"></div>
+
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
 </html>
