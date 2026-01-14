@@ -1,189 +1,171 @@
 async function main() {
 
-    // =========================================================================
-    // 1. CARREGAR DADOS (CSV + GeoJSON Local)
-    // =========================================================================
-    
-    // Carrega seu CSV
-    const rawData = await d3.csv("eurepoc_dyadic_dataset_0_1.csv");
-    
-    // Carrega seu Mapa Local
-    const worldData = await d3.json("world.geojson");
+    async function main() {
+async function main() { // <--- CORREÇÃO 1: Removida a duplicata aqui
 
     // =========================================================================
+    // 1. CARREGAR DADOS REAIS
+    // =========================================================================
+
+    // AQUI ESTÁ A MUDANÇA: Usamos d3.csv para ler o arquivo que você subiu
+    // Carrega seu CSV
+    const rawData = await d3.csv("eurepoc_dyadic_dataset_0_1.csv");
+
+    // O mapa continuamos puxando da internet (CDN) para facilitar, pois é um arquivo padrão
+    // Carrega seu Mapa Local (GeoJSON)
+    const worldData = await d3.json("world.geojson");
+
+
+    // =========================================================================
+    // 2. LIMPEZA E TRATAMENTO (Adaptado para o formato do seu CSV Real)
     // 2. LIMPEZA E TRATAMENTO
     // =========================================================================
-    
+
+    // Lista de termos para ignorar
     const ignorar = ["Not available", "Unknown", "Other"];
 
     const dadosConflitos = rawData.map(d => {
+        // 1. Tratamento de Data (O seu CSV original usa datas reais)
         let start = null;
         if (d.start_date && d.start_date.toLowerCase() !== "not available") {
+            const cleanStr = d.start_date.replace(" ", "T"); // Corrige formato ISO se necessário
             const cleanStr = d.start_date.replace(" ", "T");
             const date = new Date(cleanStr);
             if (!isNaN(date)) start = date;
         }
 
+        // 2. Tratamento de Setores
         const setoresRaw = d.receiver_subcategory || d.receiver_category || "";
         const setoresLimpos = setoresRaw.replace(/[\[\]'"]/g, "").split(/[;,]/)
             .map(s => s.trim())
             .filter(s => s && !ignorar.includes(s));
-            
+
+        // 3. Tratamento de Tipos de Operação
         const opsRaw = d.operation_type || "";
+        // O seu CSV original pode ter listas em strings, vamos limpar:
         const opsLimpos = opsRaw.replace(/[\[\]'"]/g, "").split(/[;,]/)
             .map(s => s.trim())
             .filter(s => s && !ignorar.includes(s));
 
         return {
+            id: d.incident_id, // ID real do CSV
             id: d.incident_id,
             data: start,
             ano: start ? start.getFullYear() : null,
             atacante: d.initiator_country || "Unknown",
             vitima: d.receiver_country || "Unknown",
+            // Lógica para definir se é Estado ou Hacker (baseada no seu código original)
+            tipo_ator: (d.initiator_category || "").toLowerCase().includes("state") && 
+                       !(d.initiator_category || "").includes("non-state") ? "Nation-State" : "Non-State / Hacker",
+            setor: setoresLimpos[0] || "Unknown",
+            tipos_lista: opsLimpos // Lista real de tipos
             tipos_lista: opsLimpos
         };
-    }).filter(d => d.data !== null && d.ano >= 2010); // Filtra erros e foca de 2010 pra frente
+    }).filter(d => d.data !== null); // Remove linhas sem data válida
+
+    // ... O RESTANTE DO CÓDIGO (Parte 3: Criação dos Gráficos) CONTINUA IGUAL ...
+    // (Não precisa mudar nada da parte 3 para baixo, pois já ajustamos as variáveis)
+    }).filter(d => d.data !== null);
 
 
     // =========================================================================
     // 3. CRIAÇÃO DOS GRÁFICOS
     // =========================================================================
 
-    const widthPadrao = document.querySelector(".sticky-chart").offsetWidth || 600; 
+    // Configuração padrão de largura para ficar bonito na coluna
+    const widthPadrao = 600; 
 
-    // --- GRÁFICO 1: MAPA (PASSO 1) ---
-    // Objetivo: Mostrar EUA e Rússia/Ucrânia iluminados
-    
-    const countries = worldData; 
-    
-    const mapCounts = d3.rollup(dadosConflitos, v => v.length, d => {
-        // CORREÇÃO CRÍTICA DE NOMES:
-        let pais = d.vitima;
-        if (pais === "United States") return "United States of America";
-        if (pais === "Russian Federation" || pais === "Russia") return "Russia"; 
-        if (pais === "Korea, Republic of") return "South Korea";
-        return pais;
-    });
-
-    const plotMapa = Plot.plot({
-        // title: "Mapa Global de Incidentes",
-        width: widthPadrao,
-        height: 500,
-        projection: "equal-earth",
-        color: { 
-            scheme: "Reds", 
-            type: "log", // Escala Logarítmica (ESSENCIAL)
-            label: "Incidentes (Log)", 
-            legend: true, 
-            domain: [1, d3.max(mapCounts.values())] // Evita erro log(0)
-        },
-        marks: [
-            Plot.sphere({fill: "#f8f9fa"}),
-            Plot.geo(countries, {
-                fill: d => mapCounts.get(d.properties.name),
-                stroke: "white",
-                strokeWidth: 0.5,
-                tip: true,
-                title: d => `${d.properties.name}\n${mapCounts.get(d.properties.name) || 0} ataques`
-            }),
-            Plot.sphere({stroke: "#ddd", strokeWidth: 0.5})
-        ]
-    });
-
-    renderChart("vis-mapa", plotMapa);
-
-
-    // --- GRÁFICO 2: EVOLUÇÃO TEMPORAL (PASSO 2) ---
-    // Objetivo: Mostrar o pico da guerra em 2022/2023
-    
+    // --- GRÁFICO 1: EVOLUÇÃO TEMPORAL (ID: vis-temporal) ---
+    // --- GRÁFICO 1: EVOLUÇÃO TEMPORAL ---
     const dadosPorAno = d3.rollup(dadosConflitos, v => v.length, d => d.ano);
     const timelineData = Array.from(dadosPorAno, ([ano, total]) => ({ano, total}))
         .sort((a, b) => a.ano - b.ano);
-
-    const plotTemporal = Plot.plot({
-        // title: "A Escalada do Conflito",
-        width: widthPadrao,
-        height: 400,
-        x: { label: "Ano", tickFormat: "d", grid: true },
-        y: { label: "Total de Ataques", grid: true },
-        marks: [
-            // Área sombreada para dar volume
-            Plot.areaY(timelineData, {x: "ano", y: "total", fill: "steelblue", fillOpacity: 0.3}),
-            // Linha forte
-            Plot.line(timelineData, {x: "ano", y: "total", stroke: "steelblue", strokeWidth: 3}),
-            // Bolinhas
-            Plot.dot(timelineData, {x: "ano", y: "total", fill: "steelblue", tip: true}),
-            
-            // O TEXTO QUE PROVA A NARRATIVA:
-            Plot.text(timelineData, {
-                filter: d => d.ano === 2023,
-                x: "ano", y: "total",
-                text: d => `Pico Histórico: ${d.total}`,
-                dy: -20, 
-                fontWeight: "bold",
-                fontSize: 14
-            })
-        ]
-    });
-    
+@@ -88,13 +76,15 @@ async function main() {
     renderChart("vis-temporal", plotTemporal);
 
 
-    // --- GRÁFICO 3: ARSENAL (PASSO 3) ---
+    // --- GRÁFICO 2: MAPA DE VULNERABILIDADE (ID: vis-mapa) ---
+    const countries = topojson.feature(worldData, worldData.objects.countries);
+    // --- GRÁFICO 2: MAPA DE VULNERABILIDADE ---
+    
+    // CORREÇÃO 2: Se o arquivo é GeoJSON, usamos direto!
+    // Não usamos topojson.feature aqui.
+    const countries = worldData; 
+
+    // Contagem por país vítima
+    const mapCounts = d3.rollup(dadosConflitos, v => v.length, d => {
+        if (d.vitima === "United States") return "United States of America";
+        if (d.vitima.includes("Russia")) return "Russian Federation";
+        if (d.vitima.includes("Russia")) return "Russian Federation"; 
+        return d.vitima;
+    });
+
+@@ -108,10 +98,10 @@ async function main() {
+            type: "log", 
+            label: "Nº de Ataques", 
+            legend: true, 
+            domain: [1, 500] // Ajuste conforme seus dados reais para o gradiente ficar bom
+            domain: [1, 500] 
+        },
+        marks: [
+            Plot.sphere({fill: "#f0f4f8"}), // Cor do oceano suave
+            Plot.sphere({fill: "#f0f4f8"}),
+            Plot.geo(countries, {
+                fill: d => mapCounts.get(d.properties.name),
+                stroke: "white",
+@@ -125,8 +115,7 @@ async function main() {
+    renderChart("vis-mapa", plotMapa);
+
+
+    // --- GRÁFICO 3: ARSENAL / TIPOS DE ATAQUE (ID: vis-barras) ---
+    // Precisamos "explodir" a lista de tipos (um incidente pode ter vários tipos)
+    // --- GRÁFICO 3: ARSENAL ---
     const contagemTipos = new Map();
     dadosConflitos.forEach(d => {
         d.tipos_lista.forEach(tipo => {
-            contagemTipos.set(tipo, (contagemTipos.get(tipo) || 0) + 1);
-        });
-    });
+@@ -136,12 +125,12 @@ async function main() {
 
     const dadosTipos = Array.from(contagemTipos, ([tipo, valor]) => ({tipo, valor}))
         .sort((a, b) => b.valor - a.valor)
-        .slice(0, 5); // Top 5 apenas
+        .slice(0, 10); // Top 10
+        .slice(0, 10);
 
     const plotTipos = Plot.plot({
+        title: "Top 10 Métodos de Ataque",
         width: widthPadrao,
-        marginLeft: 180, // Espaço para nomes longos
+        marginLeft: 200, // Margem grande para ler os nomes
+        marginLeft: 200,
         x: { label: "Quantidade", grid: true },
         y: { label: null, domain: dadosTipos.map(d => d.tipo) },
         marks: [
-            Plot.barX(dadosTipos, {x: "valor", y: "tipo", fill: "purple", tip: true}),
-            Plot.text(dadosTipos, {x: "valor", y: "tipo", text: "valor", dx: 5, textAnchor: "start"})
-        ]
-    });
-
+@@ -153,7 +142,7 @@ async function main() {
     renderChart("vis-barras", plotTipos);
 
 
-    // --- GRÁFICO 4: ORIGEM (PASSO 4) ---
+    // --- GRÁFICO 4: ORIGEM DOS ATAQUES (ID: vis-origem) ---
+    // --- GRÁFICO 4: ORIGEM ---
     const origemCounts = d3.rollup(dadosConflitos, v => v.length, d => d.atacante);
     const dadosOrigem = Array.from(origemCounts, ([pais, valor]) => ({pais, valor}))
-        .filter(d => d.pais !== "Unknown" && d.pais !== "Not attributed") // Remove desconhecidos
-        .sort((a, b) => b.valor - a.valor)
-        .slice(0, 5);
-
-    const plotOrigem = Plot.plot({
-        width: widthPadrao,
-        marginLeft: 150,
-        x: { label: "Ataques Iniciados", grid: true },
-        y: { label: null, domain: dadosOrigem.map(d => d.pais) },
-        marks: [
-            Plot.barX(dadosOrigem, {x: "valor", y: "pais", fill: "orange", tip: true}),
-            Plot.text(dadosOrigem, {x: "valor", y: "pais", text: "valor", dx: 5, textAnchor: "start"})
-        ]
-    });
+        .filter(d => d.pais !== "Unknown")
+@@ -174,51 +163,38 @@ async function main() {
 
     renderChart("vis-origem", plotOrigem);
 
-    // Inicia o Scroll
+
+    // =========================================================================
+    // 4. INICIA O SISTEMA DE SCROLL (SCROLLYTELLING)
+    // =========================================================================
+    // Inicia Scroll
     initScrollama();
 }
 
+// Função Auxiliar para colocar o gráfico na tela
 // === FUNÇÕES AUXILIARES ===
 
 function renderChart(id, plotElement) {
     const div = document.getElementById(id);
     if (div) {
+        div.innerHTML = ""; // Limpa qualquer coisa que tinha antes
         div.innerHTML = "";
         div.append(plotElement);
     } else {
@@ -191,30 +173,34 @@ function renderChart(id, plotElement) {
     }
 }
 
+// Lógica de Detecção de Rolagem
 function initScrollama() {
     const steps = document.querySelectorAll('.step');
     const chartContainers = document.querySelectorAll('.chart-container');
-    
+
+    // Configuração do Observador: dispara quando 50% do texto está visível
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                // Descobre qual gráfico mostrar
+                // 1. Pega qual gráfico esse texto quer mostrar
                 const targetId = entry.target.getAttribute('data-chart');
                 
-                // Esconde todos
+                // 2. Esconde todos
                 chartContainers.forEach(c => c.classList.remove('active'));
                 
-                // Mostra o alvo
+                // 3. Mostra só o escolhido
                 const targetChart = document.getElementById(targetId);
                 if (targetChart) {
                     targetChart.classList.add('active');
                 }
             }
         });
-    }, { threshold: 0.6 }); // 0.6 = Troca quando o texto estiver 60% na tela (mais suave)
-    
+    }, { threshold: 0.5 }); // 0.5 significa "metade do elemento visível"
+
+    // Manda observar todos os passos de texto
+    }, { threshold: 0.5 });
     steps.forEach(step => observer.observe(step));
 }
 
-// Executa
+// Roda a função principal
 main().catch(err => console.error("Erro ao carregar dados:", err));
