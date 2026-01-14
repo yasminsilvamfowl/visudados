@@ -1,206 +1,312 @@
 async function main() {
-
-    async function main() {
-async function main() { // <--- CORREÇÃO 1: Removida a duplicata aqui
-
-    // =========================================================================
-    // 1. CARREGAR DADOS REAIS
-    // =========================================================================
-
-    // AQUI ESTÁ A MUDANÇA: Usamos d3.csv para ler o arquivo que você subiu
-    // Carrega seu CSV
+    
+    // 1. CARREGAR DADOS
+    // Carrega seu CSV (Nome atualizado)
     const rawData = await d3.csv("eurepoc_dyadic_dataset_0_1.csv");
+    
+    // Carrega Mapa (Usando CDN para garantir que funcione sem baixar arquivos extras)
+    const world = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+    const countries = topojson.feature(world, world.objects.countries);
 
-    // O mapa continuamos puxando da internet (CDN) para facilitar, pois é um arquivo padrão
-    // Carrega seu Mapa Local (GeoJSON)
-    const worldData = await d3.json("world.geojson");
-
-
-    // =========================================================================
-    // 2. LIMPEZA E TRATAMENTO (Adaptado para o formato do seu CSV Real)
     // 2. LIMPEZA E TRATAMENTO
-    // =========================================================================
-
-    // Lista de termos para ignorar
-    const ignorar = ["Not available", "Unknown", "Other"];
-
+    const ignorar = ["Not available", "Unknown", "Other", "nan", ""];
+    
     const dadosConflitos = rawData.map(d => {
-        // 1. Tratamento de Data (O seu CSV original usa datas reais)
+        // Tratamento de Data
         let start = null;
         if (d.start_date && d.start_date.toLowerCase() !== "not available") {
-            const cleanStr = d.start_date.replace(" ", "T"); // Corrige formato ISO se necessário
             const cleanStr = d.start_date.replace(" ", "T");
             const date = new Date(cleanStr);
             if (!isNaN(date)) start = date;
         }
 
-        // 2. Tratamento de Setores
-        const setoresRaw = d.receiver_subcategory || d.receiver_category || "";
-        const setoresLimpos = setoresRaw.replace(/[\[\]'"]/g, "").split(/[;,]/)
-            .map(s => s.trim())
-            .filter(s => s && !ignorar.includes(s));
-
-        // 3. Tratamento de Tipos de Operação
+        // Tratamento de Tipos (Explodir listas se houver separadores)
         const opsRaw = d.operation_type || "";
-        // O seu CSV original pode ter listas em strings, vamos limpar:
         const opsLimpos = opsRaw.replace(/[\[\]'"]/g, "").split(/[;,]/)
             .map(s => s.trim())
             .filter(s => s && !ignorar.includes(s));
 
+        // Tratamento de Setores (Para o gráfico 5)
+        const subRaw = d.receiver_subcategory || "";
+        
         return {
-            id: d.incident_id, // ID real do CSV
             id: d.incident_id,
             data: start,
             ano: start ? start.getFullYear() : null,
             atacante: d.initiator_country || "Unknown",
             vitima: d.receiver_country || "Unknown",
-            // Lógica para definir se é Estado ou Hacker (baseada no seu código original)
-            tipo_ator: (d.initiator_category || "").toLowerCase().includes("state") && 
-                       !(d.initiator_category || "").includes("non-state") ? "Nation-State" : "Non-State / Hacker",
-            setor: setoresLimpos[0] || "Unknown",
-            tipos_lista: opsLimpos // Lista real de tipos
+            alvo_cru: subRaw,
             tipos_lista: opsLimpos
         };
-    }).filter(d => d.data !== null); // Remove linhas sem data válida
-
-    // ... O RESTANTE DO CÓDIGO (Parte 3: Criação dos Gráficos) CONTINUA IGUAL ...
-    // (Não precisa mudar nada da parte 3 para baixo, pois já ajustamos as variáveis)
-    }).filter(d => d.data !== null);
+    }).filter(d => d.data !== null && d.ano >= 2005); // Filtro de segurança
 
 
-    // =========================================================================
-    // 3. CRIAÇÃO DOS GRÁFICOS
-    // =========================================================================
+    // === FUNÇÃO AJUDANTE DE RENDERIZAÇÃO ===
+    const widthPadrao = 600;
 
-    // Configuração padrão de largura para ficar bonito na coluna
-    const widthPadrao = 600; 
+    function renderChart(id, chartNode) {
+        const div = document.getElementById(id);
+        if(div) {
+            div.innerHTML = "";
+            div.appendChild(chartNode);
+        }
+    }
 
-    // --- GRÁFICO 1: EVOLUÇÃO TEMPORAL (ID: vis-temporal) ---
-    // --- GRÁFICO 1: EVOLUÇÃO TEMPORAL ---
-    const dadosPorAno = d3.rollup(dadosConflitos, v => v.length, d => d.ano);
-    const timelineData = Array.from(dadosPorAno, ([ano, total]) => ({ano, total}))
-        .sort((a, b) => a.ano - b.ano);
-@@ -88,13 +76,15 @@ async function main() {
-    renderChart("vis-temporal", plotTemporal);
-
-
-    // --- GRÁFICO 2: MAPA DE VULNERABILIDADE (ID: vis-mapa) ---
-    const countries = topojson.feature(worldData, worldData.objects.countries);
-    // --- GRÁFICO 2: MAPA DE VULNERABILIDADE ---
-    
-    // CORREÇÃO 2: Se o arquivo é GeoJSON, usamos direto!
-    // Não usamos topojson.feature aqui.
-    const countries = worldData; 
-
-    // Contagem por país vítima
-    const mapCounts = d3.rollup(dadosConflitos, v => v.length, d => {
+    // =========================================================
+    // GRÁFICO 1: MAPA (vis-mapa)
+    // =========================================================
+    const vitimasCount = d3.rollup(dadosConflitos, v => v.length, d => {
+        // Correção de nomes para bater com o mapa
         if (d.vitima === "United States") return "United States of America";
         if (d.vitima.includes("Russia")) return "Russian Federation";
-        if (d.vitima.includes("Russia")) return "Russian Federation"; 
         return d.vitima;
     });
-
-@@ -108,10 +98,10 @@ async function main() {
-            type: "log", 
-            label: "Nº de Ataques", 
-            legend: true, 
-            domain: [1, 500] // Ajuste conforme seus dados reais para o gradiente ficar bom
-            domain: [1, 500] 
-        },
+    
+    const plotMapa = Plot.plot({
+        width: widthPadrao,
+        projection: "equal-earth",
+        color: { scheme: "Reds", label: "Ataques Recebidos", legend: true },
         marks: [
-            Plot.sphere({fill: "#f0f4f8"}), // Cor do oceano suave
-            Plot.sphere({fill: "#f0f4f8"}),
             Plot.geo(countries, {
-                fill: d => mapCounts.get(d.properties.name),
-                stroke: "white",
-@@ -125,8 +115,7 @@ async function main() {
+                fill: d => vitimasCount.get(d.properties.name) || "#eee",
+                stroke: "#ccc",
+                tip: true,
+                title: d => `${d.properties.name}: ${vitimasCount.get(d.properties.name) || 0}`
+            }),
+            Plot.graticule({strokeOpacity: 0.2})
+        ]
+    });
     renderChart("vis-mapa", plotMapa);
 
 
-    // --- GRÁFICO 3: ARSENAL / TIPOS DE ATAQUE (ID: vis-barras) ---
-    // Precisamos "explodir" a lista de tipos (um incidente pode ter vários tipos)
-    // --- GRÁFICO 3: ARSENAL ---
-    const contagemTipos = new Map();
-    dadosConflitos.forEach(d => {
-        d.tipos_lista.forEach(tipo => {
-@@ -136,12 +125,12 @@ async function main() {
+    // =========================================================
+    // GRÁFICO 2: TEMPORAL (vis-temporal)
+    // =========================================================
+    const dadosPorAno = d3.groups(dadosConflitos, d => d.ano)
+        .map(([ano, lista]) => ({ ano, qtd: lista.length }))
+        .sort((a, b) => a.ano - b.ano);
 
-    const dadosTipos = Array.from(contagemTipos, ([tipo, valor]) => ({tipo, valor}))
-        .sort((a, b) => b.valor - a.valor)
-        .slice(0, 10); // Top 10
-        .slice(0, 10);
-
-    const plotTipos = Plot.plot({
-        title: "Top 10 Métodos de Ataque",
+    const plotTemporal = Plot.plot({
         width: widthPadrao,
-        marginLeft: 200, // Margem grande para ler os nomes
-        marginLeft: 200,
-        x: { label: "Quantidade", grid: true },
-        y: { label: null, domain: dadosTipos.map(d => d.tipo) },
+        x: { label: "Ano", tickFormat: "d" },
+        y: { label: "Incidentes", grid: true },
         marks: [
-@@ -153,7 +142,7 @@ async function main() {
-    renderChart("vis-barras", plotTipos);
+            Plot.lineY(dadosPorAno, {x: "ano", y: "qtd", stroke: "steelblue", strokeWidth: 3}),
+            Plot.areaY(dadosPorAno, {x: "ano", y: "qtd", fill: "steelblue", fillOpacity: 0.1}),
+            Plot.tip(dadosPorAno, Plot.pointerX({x: "ano", y: "qtd"}))
+        ]
+    });
+    renderChart("vis-temporal", plotTemporal);
 
 
-    // --- GRÁFICO 4: ORIGEM DOS ATAQUES (ID: vis-origem) ---
-    // --- GRÁFICO 4: ORIGEM ---
+    // =========================================================
+    // GRÁFICO 3: MÉTODOS (vis-barras)
+    // =========================================================
+    const metodosFlat = dadosConflitos.flatMap(d => d.tipos_lista);
+    const metodosCount = d3.rollup(metodosFlat, v => v.length, d => d);
+    const dadosMetodos = Array.from(metodosCount, ([metodo, valor]) => ({metodo, valor}))
+        .sort((a, b) => b.valor - a.valor).slice(0, 10);
+
+    const plotBarras = Plot.plot({
+        width: widthPadrao,
+        marginLeft: 150,
+        x: { label: "Frequência", grid: true },
+        y: { label: null, domain: dadosMetodos.map(d => d.metodo) },
+        marks: [
+            Plot.barX(dadosMetodos, {x: "valor", y: "metodo", fill: "purple", tip: true}),
+            Plot.text(dadosMetodos, {x: "valor", y: "metodo", text: "valor", dx: 5, textAnchor: "start"})
+        ]
+    });
+    renderChart("vis-barras", plotBarras);
+
+
+    // =========================================================
+    // GRÁFICO 4: ORIGEM (vis-origem)
+    // =========================================================
     const origemCounts = d3.rollup(dadosConflitos, v => v.length, d => d.atacante);
     const dadosOrigem = Array.from(origemCounts, ([pais, valor]) => ({pais, valor}))
-        .filter(d => d.pais !== "Unknown")
-@@ -174,51 +163,38 @@ async function main() {
+        .filter(d => d.pais !== "Unknown" && d.pais !== "Not attributed")
+        .sort((a, b) => b.valor - a.valor).slice(0, 10);
 
+    const plotOrigem = Plot.plot({
+        width: widthPadrao,
+        marginLeft: 150,
+        x: { grid: true },
+        y: { label: null, domain: dadosOrigem.map(d => d.pais) },
+        marks: [
+            Plot.barX(dadosOrigem, {x: "valor", y: "pais", fill: "tomato", tip: true}),
+            Plot.text(dadosOrigem, {x: "valor", y: "pais", text: "valor", dx: 5, textAnchor: "start"})
+        ]
+    });
     renderChart("vis-origem", plotOrigem);
 
 
-    // =========================================================================
-    // 4. INICIA O SISTEMA DE SCROLL (SCROLLYTELLING)
-    // =========================================================================
-    // Inicia Scroll
-    initScrollama();
-}
+    // =========================================================
+    // GRÁFICO 5: ALVOS (vis-alvos)
+    // =========================================================
+    const contagemAlvos = new Map();
+    dadosConflitos.forEach(d => {
+        let texto = d.alvo_cru;
+        if (!texto || texto === "Not available" || texto === "Unknown") return;
+        
+        texto = texto.replace(/[\[\]'"]/g, "");
+        const separador = texto.includes(",") ? "," : ";";
+        
+        texto.split(separador).map(s => s.trim()).forEach(item => {
+            if (item && item !== "Not available" && item !== "Unknown" && item !== "Other") {
+                contagemAlvos.set(item, (contagemAlvos.get(item) || 0) + 1);
+            }
+        });
+    });
 
-// Função Auxiliar para colocar o gráfico na tela
-// === FUNÇÕES AUXILIARES ===
+    const dadosAlvos = Array.from(contagemAlvos, ([nome, valor]) => ({nome, valor}))
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 10);
 
-function renderChart(id, plotElement) {
-    const div = document.getElementById(id);
-    if (div) {
-        div.innerHTML = ""; // Limpa qualquer coisa que tinha antes
-        div.innerHTML = "";
-        div.append(plotElement);
-    } else {
-        console.error(`Elemento com ID ${id} não encontrado no HTML.`);
+    const plotAlvos = Plot.plot({
+        width: widthPadrao,
+        marginLeft: 220, // Margem maior para caber nomes longos
+        x: { label: "Incidentes", grid: true },
+        y: { label: null, domain: dadosAlvos.map(d => d.nome) },
+        marks: [
+            Plot.barX(dadosAlvos, {x: "valor", y: "nome", fill: "teal", tip: true}),
+            Plot.text(dadosAlvos, {x: "valor", y: "nome", text: "valor", dx: 5, textAnchor: "start"})
+        ]
+    });
+    renderChart("vis-alvos", plotAlvos);
+
+
+    // =========================================================
+    // GRÁFICO 6: A TEIA / SÍSIFO (vis-rede)
+    // =========================================================
+    const linksMap = d3.rollup(dadosConflitos, v => v.length, d => d.atacante, d => d.vitima);
+    const links = [];
+    const nodesSet = new Set();
+
+    for (const [source, targets] of linksMap) {
+        for (const [target, value] of targets) {
+            // Filtro mais rígido para não travar a tela (> 3 ataques)
+            if (value > 3 && source !== "Unknown" && target !== "Unknown" && source !== "Not attributed") {
+                links.push({source, target, value});
+                nodesSet.add(source);
+                nodesSet.add(target);
+            }
+        }
     }
-}
+    const nodes = Array.from(nodesSet).map(id => ({id}));
 
-// Lógica de Detecção de Rolagem
-function initScrollama() {
-    const steps = document.querySelectorAll('.step');
-    const chartContainers = document.querySelectorAll('.chart-container');
+    const heightRede = 600;
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
 
-    // Configuração do Observador: dispara quando 50% do texto está visível
+    const simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+        .force("charge", d3.forceManyBody().strength(-200))
+        .force("center", d3.forceCenter(widthPadrao / 2, heightRede / 2))
+        .force("collide", d3.forceCollide(15));
+
+    const svgRede = d3.create("svg")
+        .attr("viewBox", [0, 0, widthPadrao, heightRede])
+        .attr("style", "max-width: 100%; height: auto; border: 1px solid #eee; background: #fff;");
+
+    svgRede.append("defs").selectAll("marker")
+        .data(["end"])
+        .join("marker")
+            .attr("id", "arrow")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 18)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+                .attr("fill", "#999")
+                .attr("d", "M0,-5L10,0L0,5");
+
+    const link = svgRede.append("g")
+        .attr("stroke", "#999")
+        .attr("stroke-opacity", 0.6)
+        .selectAll("line")
+        .data(links)
+        .join("line")
+            .attr("stroke-width", d => Math.sqrt(d.value) * 0.5)
+            .attr("marker-end", "url(#arrow)");
+
+    const node = svgRede.append("g")
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1.5)
+        .selectAll("circle")
+        .data(nodes)
+        .join("circle")
+            .attr("r", 6)
+            .attr("fill", d => color(d.id))
+            .call(d3.drag()
+                .on("start", (event) => {
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    event.subject.fx = event.subject.x;
+                    event.subject.fy = event.subject.y;
+                })
+                .on("drag", (event) => {
+                    event.subject.fx = event.x;
+                    event.subject.fy = event.y;
+                })
+                .on("end", (event) => {
+                    if (!event.active) simulation.alphaTarget(0);
+                    event.subject.fx = null;
+                    event.subject.fy = null;
+                }));
+
+    const text = svgRede.append("g")
+        .selectAll("text")
+        .data(nodes)
+        .join("text")
+            .text(d => d.id)
+            .attr("x", 8)
+            .attr("y", 3)
+            .style("font-size", "10px")
+            .style("font-family", "sans-serif");
+
+    node.append("title").text(d => d.id);
+
+    simulation.on("tick", () => {
+        link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+        node
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y);
+        text
+            .attr("x", d => d.x + 8)
+            .attr("y", d => d.y + 3);
+    });
+
+    renderChart("vis-rede", svgRede.node());
+
+
+    // =========================================================
+    // 4. SCROLLAMA (Troca de Gráficos)
+    // =========================================================
+    const steps = document.querySelectorAll(".step");
+    const containers = document.querySelectorAll(".chart-container");
+
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                // 1. Pega qual gráfico esse texto quer mostrar
-                const targetId = entry.target.getAttribute('data-chart');
-                
-                // 2. Esconde todos
-                chartContainers.forEach(c => c.classList.remove('active'));
-                
-                // 3. Mostra só o escolhido
-                const targetChart = document.getElementById(targetId);
-                if (targetChart) {
-                    targetChart.classList.add('active');
-                }
+                const chartId = entry.target.getAttribute("data-chart");
+
+                // Remove active de todos
+                containers.forEach(c => c.classList.remove("active"));
+
+                // Adiciona active no alvo
+                const alvo = document.getElementById(chartId);
+                if (alvo) alvo.classList.add("active");
             }
         });
-    }, { threshold: 0.5 }); // 0.5 significa "metade do elemento visível"
-
-    // Manda observar todos os passos de texto
     }, { threshold: 0.5 });
+
     steps.forEach(step => observer.observe(step));
 }
 
-// Roda a função principal
-main().catch(err => console.error("Erro ao carregar dados:", err));
+// Executa
+main().catch(err => console.error("Erro no script:", err));
