@@ -22,16 +22,16 @@
             position: relative;
         }
 
-        /* COLUNA DA ESQUERDA: TEXTO (ROTEIRO) */
+        /* COLUNA DA ESQUERDA: TEXTO */
         .scrolly-text {
             width: 35%; 
             position: relative;
             z-index: 2;
-            margin-left: 5%; /* Um pouco de respiro */
+            margin-left: 5%;
         }
 
         .step {
-            height: 100vh; /* Altura da tela */
+            height: 100vh;
             display: flex;
             align-items: center;
         }
@@ -41,13 +41,15 @@
             padding: 2rem;
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            border-left: 5px solid #steelblue;
+            border-left: 5px solid steelblue;
         }
 
         .text-box h2 { margin-top: 0; color: #2c3e50; }
         .text-box p { line-height: 1.6; font-size: 1.1rem; }
+        
+        hr { border: 0; height: 1px; background: #ccc; margin: 20px 0; }
 
-        /* COLUNA DA DIREITA: GRÁFICOS (FIXOS) */
+        /* COLUNA DA DIREITA: GRÁFICOS */
         .sticky-chart {
             width: 60%;
             height: 100vh;
@@ -56,10 +58,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #fff; /* Fundo branco para destacar o gráfico */
+            background: #fff;
         }
 
-        /* ONDE O GRÁFICO REAL VAI APARECER */
         .chart-container {
             position: absolute;
             opacity: 0;
@@ -68,18 +69,25 @@
             width: 90%;
             display: flex;
             justify-content: center;
-            pointer-events: none; /* Deixa o scroll passar */
+            pointer-events: none;
         }
 
-        /* Classe que ativa o gráfico visível */
         .chart-container.active {
             opacity: 1;
             transform: translateY(0);
-            pointer-events: all; /* Permite interagir com tooltip */
+            pointer-events: all;
         }
 
-        /* Ajuste fino para os gráficos do Observable Plot */
+        /* AJUSTES FINAIS PARA GRÁFICOS */
         figure { margin: 0; }
+        
+        /* Garante que o gráfico de Rede (SVG puro) não estoure */
+        svg {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
         
         .spacer { height: 50vh; }
     </style>
@@ -94,36 +102,57 @@
                 <h1>Relatório de Conflitos Cibernéticos<br><small style="color:gray; font-size: 1rem;">Role para começar ↓</small></h1>
             </div>
 
-             <div class="step" data-chart="vis-mapa">
+            <div class="step" data-chart="vis-mapa">
                 <div class="text-box" style="border-left-color: tomato;">
                     <h2>1. Campo de Batalha</h2>
-                    <p> Ao olharmos para o passado, percebemos que os incidentes cibernéticos eram como uma espécie de ruído de fundo misterioso... Mas com o tempo esse cenário mudou.</p> 
-                    <p> As guerras que antes utilizavam <strong>espadas, revólveres e bombas</strong> ganharam um novo objeto de combate: a internet.</p> 
-                    <p>De repente, para atacar e receber um ataque bastava estar a <strong>um clique de distância</strong> do oponente e nada mais. Ao observarmos esse mapa vemos os países que mais sofreram incidentes.</p>
-                    <p>As áreas mais escuras indicam maior volume de ataques recebidos. EUA e nações europeias frequentemente aparecem como alvos primários.</p>
+                    <p>Ao olharmos para o passado, percebemos que os incidentes cibernéticos eram como uma espécie de ruído de fundo misterioso... Mas com o tempo esse cenário mudou.</p> 
+                    <p>As guerras que antes utilizavam <strong>espadas, revólveres e bombas</strong> ganharam um novo objeto de combate: a internet.</p> 
+                    <p>De repente, para atacar e receber um ataque bastava estar a <strong>um clique de distância</strong> do oponente. Ao observarmos este mapa, vemos os países que mais sofreram incidentes.</p>
                 </div>
             </div>
 
             <div class="step" data-chart="vis-temporal">
                 <div class="text-box" style="border-left-color: steelblue;">
                     <h2>2. A Escalada dos Conflitos</h2>
-                    <p>Bem, deixe-me dizer uma coisa importante: os conflitos geopolíticos sempre influenciam no rosto do planeta.  Ao analisarmos os dados da última década, percebemos uma tendência clara. O número de incidentes documentados cresceu significativamente.</p>
-                    <p>Note os picos de atividade e como a frequência de ataques se intensificou nos anos mais recentes. E qual conflito as mídias muito noticiaram em 2022 e 2023? A guerra entre a Rússia e a Ucrânia! Foi esse o catalisador que fez com que os incidentes triplicassem de 2021 para 2023. </p>
+                    <p>Os conflitos geopolíticos sempre influenciam no rosto do planeta. Ao analisarmos os dados da última década, percebemos uma tendência clara: o número de incidentes documentados cresceu significativamente.</p>
+                    <p>Note os picos de atividade. Qual conflito as mídias noticiaram muito em 2022 e 2023? A guerra entre a Rússia e a Ucrânia! Foi esse o catalisador que fez com que os incidentes triplicassem recentemente.</p>
                 </div>
             </div>
 
             <div class="step" data-chart="vis-barras">
                 <div class="text-box" style="border-left-color: purple;">
                     <h2>3. O Arsenal Digital</h2>
-                    <p>Mas como esses ataques são feitos? Não é apenas "hackear".</p>
-                    <p>Aqui vemos os métodos mais comuns (Operations Type). Espionagem, DDoS e manipulação de informações dominam o cenário.</p>
+                    <p>Mas como esses ataques são feitos? Não é um simples "hackear", e sim roubar segredos.</p>
+                    <p>Aqui vemos os métodos mais comuns: DDoS, Ransomware... Perceba que a <strong>espionagem</strong> está no topo.</p>
+                    <p>O objetivo principal das nações não é destruir a infraestrutura do inimigo de imediato, mas sim roubar segredos, monitorar planos militares e acessar propriedade intelectual sem ser notado.</p>
                 </div>
             </div>
 
-             <div class="step" data-chart="vis-origem">
+            <div class="step" data-chart="vis-origem">
                 <div class="text-box" style="border-left-color: orange;">
                     <h2>4. A Origem</h2>
-                    <p>Quem inicia as ofensivas? Ao rastrear a origem dos ataques, vemos que certos atores estatais e grupos organizados concentram a maior parte da atividade ofensiva.</p>
+                    <p>Mas afinal, quem inicia as ofensivas? Ao rastrear a origem dos ataques, vemos que certos atores estatais concentram a maior parte da atividade.</p>
+                    <p>O ciberespaço se tornou um domínio militar onde potências projetam força sem disparar um único tiro físico.</p>
+                </div>
+            </div>
+
+            <div class="step" data-chart="vis-alvos">
+                <div class="text-box" style="border-left-color: teal;">
+                    <h2>5. O Alvo</h2>
+                    <p>Todos os atos têm uma consequência. Quem luta sempre tem um oponente. Se há quem puxe o gatilho, então há quem recebe o disparo.</p>
+                    <p>Pelo gráfico vemos que a <strong>Administração Pública</strong> e a <strong>Defesa</strong> são os alvos primários.</p>
+                    <p>Perceba a presença de serviços essenciais... Ataques contra infraestruturas de energia e serviços sociais não visam apenas roubar dados, mas desestabilizar a sociedade civil.</p>
+                </div>
+            </div>
+
+            <div class="step" data-chart="vis-rede">
+                <div class="text-box" style="border-left-color: #333;">
+                    <h2>6. A Teia do Caos</h2>
+                    <p>Ao final, o mapa geográfico perde o sentido. O que resta é isso: uma <strong>teia complexa de conexões</strong>.</p>
+                    <p>Neste gráfico de rede, cada nó é um país e cada linha é um ataque constante. Tente arrastar as bolinhas: você verá que tudo está conectado.</p>
+                    <hr>
+                    <p>Na mitologia grega, Sísifo foi condenado a empurrar uma pedra até o topo de um monte eternamente. Toda vez que chegava ao cume, a pedra rolava de volta ao início.</p>
+                    <p>Não percebe a semelhança? Aparentemente sempre haverá conflitos. Quantos "Sísifos" tentam acabar com essa guerra, mas veem os interesses geopolíticos levarem tudo de volta ao ponto de partida? É um ciclo sem fim.</p>
                 </div>
             </div>
 
@@ -131,12 +160,12 @@
         </div>
 
         <div class="sticky-chart">
-            
-            <div id="vis-temporal" class="chart-container"></div>
             <div id="vis-mapa" class="chart-container active"></div>
+            <div id="vis-temporal" class="chart-container"></div>
             <div id="vis-barras" class="chart-container"></div>
             <div id="vis-origem" class="chart-container"></div>
-
+            <div id="vis-alvos" class="chart-container"></div>
+            <div id="vis-rede" class="chart-container"></div>
         </div>
 
     </div>
