@@ -1,59 +1,63 @@
 async function main() {
 
+    async function main() {
+
     // =========================================================================
-    // 1. CARREGAMENTO DOS DADOS
+    // 1. CARREGAR DADOS REAIS
     // =========================================================================
     
-    // Tenta carregar o arquivo local. 
-    // OBS: Você precisa estar rodando um servidor local (Live Server)
+    // AQUI ESTÁ A MUDANÇA: Usamos d3.csv para ler o arquivo que você subiu
     const rawData = await d3.csv("eurepoc_dyadic_dataset_0_1.csv");
     
-    // Para o mapa, vamos tentar carregar do CDN direto para facilitar sua vida,
-    // mas se você tiver o arquivo "world.geojson" na pasta, troque a URL pelo nome do arquivo.
-    const worldData = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"); 
-    // OU: const worldData = await d3.json("world.geojson");
+    // O mapa continuamos puxando da internet (CDN) para facilitar, pois é um arquivo padrão
+    const worldData = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
 
 
     // =========================================================================
-    // 2. LIMPEZA E TRATAMENTO (Adaptado do seu código original)
+    // 2. LIMPEZA E TRATAMENTO (Adaptado para o formato do seu CSV Real)
     // =========================================================================
     
+    // Lista de termos para ignorar
     const ignorar = ["Not available", "Unknown", "Other"];
 
     const dadosConflitos = rawData.map(d => {
-        // Tratamento de Data
+        // 1. Tratamento de Data (O seu CSV original usa datas reais)
         let start = null;
         if (d.start_date && d.start_date.toLowerCase() !== "not available") {
-            const cleanStr = d.start_date.replace(" ", "T");
+            const cleanStr = d.start_date.replace(" ", "T"); // Corrige formato ISO se necessário
             const date = new Date(cleanStr);
             if (!isNaN(date)) start = date;
         }
 
-        // Tratamento de Setores/Categorias
+        // 2. Tratamento de Setores
         const setoresRaw = d.receiver_subcategory || d.receiver_category || "";
         const setoresLimpos = setoresRaw.replace(/[\[\]'"]/g, "").split(/[;,]/)
             .map(s => s.trim())
             .filter(s => s && !ignorar.includes(s));
             
-        // Tratamento de Tipos de Operação
+        // 3. Tratamento de Tipos de Operação
         const opsRaw = d.operation_type || "";
+        // O seu CSV original pode ter listas em strings, vamos limpar:
         const opsLimpos = opsRaw.replace(/[\[\]'"]/g, "").split(/[;,]/)
             .map(s => s.trim())
             .filter(s => s && !ignorar.includes(s));
 
         return {
-            id: d.incident_id,
+            id: d.incident_id, // ID real do CSV
             data: start,
             ano: start ? start.getFullYear() : null,
             atacante: d.initiator_country || "Unknown",
             vitima: d.receiver_country || "Unknown",
-            // Lógica para definir se é Estado ou Hacker
+            // Lógica para definir se é Estado ou Hacker (baseada no seu código original)
             tipo_ator: (d.initiator_category || "").toLowerCase().includes("state") && 
                        !(d.initiator_category || "").includes("non-state") ? "Nation-State" : "Non-State / Hacker",
             setor: setoresLimpos[0] || "Unknown",
-            tipos_lista: opsLimpos // Array com os tipos para contagem
+            tipos_lista: opsLimpos // Lista real de tipos
         };
-    }).filter(d => d.data !== null); // Remove dados sem data
+    }).filter(d => d.data !== null); // Remove linhas sem data válida
+
+    // ... O RESTANTE DO CÓDIGO (Parte 3: Criação dos Gráficos) CONTINUA IGUAL ...
+    // (Não precisa mudar nada da parte 3 para baixo, pois já ajustamos as variáveis)
 
 
     // =========================================================================
