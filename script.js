@@ -10,7 +10,7 @@ async function main() {
     const rawData = await d3.csv("eurepoc_dyadic_dataset_0_1.csv");
     
     // O mapa continuamos puxando da internet (CDN) para facilitar, pois é um arquivo padrão
-    const worldData = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+    const worldData = await d3.json("world.json");
 
 
     // =========================================================================
