@@ -59,27 +59,83 @@ async function main() {
     // =========================================================
     // GRÁFICO 1: MAPA (Cores ajustadas)
     // =========================================================
-    const vitimasCount = d3.rollup(dadosConflitos, v => v.length, d => {
+   // =========================================================
+    // GRÁFICO 1: MAPA DE VULNERABILIDADE (ATUALIZADO)
+    // =========================================================
+    
+    // 1. AGREGAÇÃO AVANÇADA
+    // Calculamos o total E o tipo de ataque mais comum por país
+    const statsMapa = d3.rollup(dadosConflitos, v => {
+        
+        // Descobre qual o tipo de ataque mais comum (Moda)
+        const contagemTipos = d3.rollup(v, d => d.length, d => {
+             // Pega o primeiro item da lista de tipos (caso tenha mais de um)
+             return d.tipos_lista[0] || "Unknown";
+        });
+        
+        // Ordena do maior para o menor e pega o primeiro
+        const ordenado = Array.from(contagemTipos).sort((a, b) => b[1] - a[1]);
+        const tipoPrincipal = ordenado[0] ? ordenado[0][0] : "Vários";
+
+        return {
+            total: v.length,
+            tipo: tipoPrincipal
+        };
+    }, 
+    // Normalização dos nomes para bater com o TopoJSON
+    d => {
         if (d.vitima === "United States") return "United States of America";
         if (d.vitima.includes("Russia")) return "Russian Federation";
         return d.vitima;
     });
-    
+
+    // 2. DESENHO DO GRÁFICO
     const plotMapa = Plot.plot({
-        width: widthPadrao,
+        title: "Mapa de Vulnerabilidade",
+        subtitle: `Total de incidentes: ${dadosConflitos.length}`,
+        width: widthPadrao, // Usa a largura definida no seu script
         projection: "equal-earth",
-        // 'symlog' ajuda a não deixar um país muito vermelho e o resto branco
-        color: { scheme: "Reds", type: "symlog", label: "Ataques Recebidos", legend: true },
+        
+        color: {
+            scheme: "Reds",
+            type: "symlog", // 'symlog' é melhor que 'log' pois lida bem com zeros
+            label: "Quantidade de Ataques",
+            legend: true
+        },
+
         marks: [
+            // Fundo do mar/globo
+            Plot.sphere({fill: "#f8f9fa", stroke: "#ccc"}),
+            
+            // Países
             Plot.geo(worldData, {
-                fill: d => vitimasCount.get(d.properties.name) || "#eee",
-                stroke: "#ccc",
+                fill: d => {
+                    const s = statsMapa.get(d.properties.name);
+                    return s ? s.total : 0;
+                },
+                stroke: "white",
+                strokeWidth: 0.5,
+                
+                // Habilita o Tooltip interativo padrão do Plot
                 tip: true,
-                title: d => `${d.properties.name}: ${vitimasCount.get(d.properties.name) || 0}`
+
+                // Conteúdo do Tooltip Personalizado
+                title: d => {
+                    const s = statsMapa.get(d.properties.name);
+                    if (!s) return `${d.properties.name}: Sem registros`;
+                    
+                    return `${d.properties.name}
+-------------------------
+Ataques Totais: ${s.total}
+Principal Ameaça: ${s.tipo}`;
+                }
             }),
-            Plot.graticule({strokeOpacity: 0.2})
+
+            // Linhas de latitude/longitude
+            Plot.graticule({strokeOpacity: 0.1})
         ]
     });
+
     renderChart("vis-mapa", plotMapa);
 
 
