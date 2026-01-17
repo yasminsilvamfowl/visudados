@@ -92,12 +92,21 @@ async function main() {
         subtitle: `Total de incidentes: ${dadosConflitos.length}`,
         width: widthPadrao, // Usa a largura definida no seu script
         projection: "equal-earth",
+
+        style: {
+            fontSize: "10px", // <--- Mudei para 10px (o padrão é maior)
+            backgroundColor: "transparent"
+        },
         
         color: {
             scheme: "Reds",
             type: "symlog", // 'symlog' é melhor que 'log' pois lida bem com zeros
             label: "Quantidade de Ataques",
-            legend: true
+            legend: true,
+
+            // 2. CONTROLA O TAMANHO DA BARRA
+            width: 200,   // <--- Deixa a barra mais curta (horizontalmente)
+            ticks: 4,     // <--- Mostra menos números na régua (limpa o visual)
         },
 
         marks: [
