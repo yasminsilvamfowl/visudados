@@ -105,8 +105,8 @@ async function main() {
             legend: true,
 
             // 2. CONTROLA O TAMANHO DA BARRA
-            width: 200,   // <--- Deixa a barra mais curta (horizontalmente)
-            ticks: 4,     // <--- Mostra menos números na régua (limpa o visual)
+            width: 240,   // <--- Deixa a barra mais curta (horizontalmente)
+            ticks: 3,     // <--- Mostra menos números na régua (limpa o visual)
         },
 
         marks: [
