@@ -183,29 +183,53 @@ async function main() {
     // =========================================================
     // GRÁFICO 6: A TEIA (Versão Final Estável)
     // =========================================================
+    // =========================================================
+    // GRÁFICO 6: A TEIA (Versão Final: Bolinhas Dinâmicas + Setas Corrigidas)
+    // =========================================================
+    
+    // 1. PREPARAR DADOS (Contando ataques iniciados)
     const linksMap = d3.rollup(dadosConflitos, v => v.length, d => d.atacante, d => d.vitima);
     const links = [];
     const nodesSet = new Set();
+    const ataquesFeitos = new Map(); // Para contar o peso
 
     for (const [source, targets] of linksMap) {
         for (const [target, value] of targets) {
+            // Filtro: > 3 ataques e limpa Unknown
             if (value > 3 && source !== "Unknown" && target !== "Unknown" && source !== "Not attributed") {
                 links.push({source, target, value});
                 nodesSet.add(source);
                 nodesSet.add(target);
+
+                // Soma quantos ataques o país 'source' iniciou
+                const atual = ataquesFeitos.get(source) || 0;
+                ataquesFeitos.set(source, atual + value);
             }
         }
     }
-    const nodes = Array.from(nodesSet).map(id => ({id}));
 
-    const heightRede = 400; // Altura ajustada
+    // Cria nós com a propriedade 'peso'
+    const nodes = Array.from(nodesSet).map(id => ({
+        id,
+        peso: ataquesFeitos.get(id) || 0
+    }));
+
+    // 2. CONFIGURAÇÃO VISUAL
+    const heightRede = 500; // Aumentei um pouco para caber melhor as bolas grandes
     const color = d3.scaleOrdinal(d3.schemeCategory10);
 
+    // Escala de Tamanho (Raio da bolinha baseado no peso)
+    const scaleRadius = d3.scaleSqrt()
+        .domain([0, d3.max(nodes, d => d.peso)])
+        .range([5, 30]); // De 5px até 30px
+
+    // Simulação Física
     const simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id(d => d.id).distance(50))
-        .force("charge", d3.forceManyBody().strength(-80))
+        .force("link", d3.forceLink(links).id(d => d.id).distance(150)) // Distância maior
+        .force("charge", d3.forceManyBody().strength(-200)) // Mais repulsão
         .force("center", d3.forceCenter(widthPadrao / 2, heightRede / 2))
-        .force("collide", d3.forceCollide(15));
+        // Colisão considera o tamanho da bolinha
+        .force("collide", d3.forceCollide(d => scaleRadius(d.peso) + 5));
 
     const svgRede = d3.create("svg")
         .attr("viewBox", [0, 0, widthPadrao, heightRede])
@@ -217,7 +241,7 @@ async function main() {
         .join("marker")
             .attr("id", "arrow")
             .attr("viewBox", "0 -5 10 10")
-            .attr("refX", 15)
+            .attr("refX", 0) // Vamos calcular isso via código (Math), então deixamos 0
             .attr("refY", 0)
             .attr("markerWidth", 6)
             .attr("markerHeight", 6)
@@ -226,13 +250,14 @@ async function main() {
                 .attr("fill", "#999")
                 .attr("d", "M0,-5L10,0L0,5");
 
+    // Desenha as Linhas (Espessura Fixa)
     const link = svgRede.append("g")
         .attr("stroke", "#999")
         .attr("stroke-opacity", 0.6)
         .selectAll("line")
         .data(links)
         .join("line")
-            .attr("stroke-width", d => Math.sqrt(d.value) * 0.5)
+            .attr("stroke-width", 1.5) // Fixo e elegante
             .attr("marker-end", "url(#arrow)");
 
     // Função de Arrastar (Drag)
@@ -257,54 +282,75 @@ async function main() {
             .on("end", dragended);
     }
 
+    // Desenha as Bolinhas (Tamanho Dinâmico)
     const node = svgRede.append("g")
         .attr("stroke", "#fff")
         .attr("stroke-width", 1.5)
         .selectAll("circle")
         .data(nodes)
         .join("circle")
-            .attr("r", 6)
+            .attr("r", d => scaleRadius(d.peso)) // <--- Tamanho aqui
             .attr("fill", d => color(d.id))
-            .style("cursor", "grab") // Cursor de mãozinha
+            .style("cursor", "grab")
             .call(drag(simulation));
 
-    // Texto com borda branca para leitura fácil
+    // Texto com borda (outline)
     const text = svgRede.append("g")
         .selectAll("text")
         .data(nodes)
         .join("text")
             .text(d => d.id)
-            .attr("x", 8)
+            .attr("x", d => scaleRadius(d.peso) + 5) // Texto se afasta dependendo do tamanho da bola
             .attr("y", 3)
             .style("font-size", "10px")
             .style("font-family", "sans-serif")
-            .style("pointer-events", "none") // Clique atravessa o texto
+            .style("pointer-events", "none")
             .style("stroke", "white")
             .style("stroke-width", "3px")
             .style("paint-order", "stroke")
             .style("fill", "#333");
 
-    node.append("title").text(d => d.id);
+    // Tooltip simples
+    node.append("title").text(d => `${d.id}\nAtaques Iniciados: ${d.peso}`);
 
+    // Loop de Animação (Tick)
     simulation.on("tick", () => {
-        // Limites (Parede invisível)
+        
+        // 1. Paredes Invisíveis + Atualização de Nós
         node
-            .attr("cx", d => d.x = Math.max(10, Math.min(widthPadrao - 10, d.x)))
-            .attr("cy", d => d.y = Math.max(10, Math.min(heightRede - 10, d.y)));
+            .attr("cx", d => {
+                const r = scaleRadius(d.peso);
+                return d.x = Math.max(r, Math.min(widthPadrao - r, d.x));
+            })
+            .attr("cy", d => {
+                const r = scaleRadius(d.peso);
+                return d.y = Math.max(r, Math.min(heightRede - r, d.y));
+            });
 
+        // 2. Atualização das Linhas (Matemática da Seta na Borda)
         link
             .attr("x1", d => d.source.x)
             .attr("y1", d => d.source.y)
-            .attr("x2", d => d.target.x)
-            .attr("y2", d => d.target.y);
+            .attr("x2", d => {
+                const r = scaleRadius(d.target.peso);
+                // Calcula o ângulo entre os dois pontos
+                const angle = Math.atan2(d.target.y - d.source.y, d.target.x - d.source.x);
+                // Recua o ponto final baseado no raio do alvo + um espacinho (5px)
+                return d.target.x - Math.cos(angle) * (r + 5); 
+            })
+            .attr("y2", d => {
+                const r = scaleRadius(d.target.peso);
+                const angle = Math.atan2(d.target.y - d.source.y, d.target.x - d.source.x);
+                return d.target.y - Math.sin(angle) * (r + 5);
+            });
 
+        // 3. Atualização dos Textos
         text
-            .attr("x", d => d.x + 8)
+            .attr("x", d => d.x + scaleRadius(d.peso) + 5)
             .attr("y", d => d.y + 3);
     });
 
     renderChart("vis-rede", svgRede.node());
-
 
     // =========================================================
     // 4. SCROLLAMA
