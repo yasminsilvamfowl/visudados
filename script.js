@@ -56,9 +56,6 @@ async function main() {
     }
 
 
-    // =========================================================
-    // GRÁFICO 1: MAPA (Cores ajustadas)
-    // =========================================================
    // =========================================================
     // GRÁFICO 1: MAPA DE VULNERABILIDADE (ATUALIZADO)
     // =========================================================
@@ -237,9 +234,6 @@ Principal Ameaça: ${s.tipo}`;
 
 
     // =========================================================
-    // GRÁFICO 6: A TEIA (Versão Final Estável)
-    // =========================================================
-    // =========================================================
     // GRÁFICO 6: A TEIA (Versão Final: Bolinhas Dinâmicas + Setas Corrigidas)
     // =========================================================
     
@@ -271,25 +265,25 @@ Principal Ameaça: ${s.tipo}`;
     }));
 
     // 2. CONFIGURAÇÃO VISUAL
-    const heightRede = 500; // Aumentei um pouco para caber melhor as bolas grandes
+    const heightRede = 360; // Aumentei um pouco para caber melhor as bolas grandes
     const color = d3.scaleOrdinal(d3.schemeCategory10);
 
     // Escala de Tamanho (Raio da bolinha baseado no peso)
     const scaleRadius = d3.scaleSqrt()
         .domain([0, d3.max(nodes, d => d.peso)])
-        .range([5, 30]); // De 5px até 30px
+        .range([4, 20]); // De 5px até 30px
 
     // Simulação Física
     const simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id(d => d.id).distance(150)) // Distância maior
-        .force("charge", d3.forceManyBody().strength(-200)) // Mais repulsão
+        .force("link", d3.forceLink(links).id(d => d.id).distance(80)) // Distância maior
+        .force("charge", d3.forceManyBody().strength(-120)) // Mais repulsão
         .force("center", d3.forceCenter(widthPadrao / 2, heightRede / 2))
         // Colisão considera o tamanho da bolinha
-        .force("collide", d3.forceCollide(d => scaleRadius(d.peso) + 5));
+        .force("collide", d3.forceCollide(d => scaleRadius(d.peso) + 4));
 
     const svgRede = d3.create("svg")
         .attr("viewBox", [0, 0, widthPadrao, heightRede])
-        .attr("style", "max-width: 100%; height: auto; border: 1px solid #eee; background: #fff; border-radius: 8px;");
+        .attr("style", "max-width: 90%; height: auto; display: block; margin: 0 auto; background: #fff; border-radius: 8px; border: 1px solid #eee;");
 
     // Definição da Seta
     svgRede.append("defs").selectAll("marker")
@@ -299,8 +293,8 @@ Principal Ameaça: ${s.tipo}`;
             .attr("viewBox", "0 -5 10 10")
             .attr("refX", 0) // Vamos calcular isso via código (Math), então deixamos 0
             .attr("refY", 0)
-            .attr("markerWidth", 6)
-            .attr("markerHeight", 6)
+            .attr("markerWidth", 5)
+            .attr("markerHeight", 5)
             .attr("orient", "auto")
             .append("path")
                 .attr("fill", "#999")
@@ -309,11 +303,11 @@ Principal Ameaça: ${s.tipo}`;
     // Desenha as Linhas (Espessura Fixa)
     const link = svgRede.append("g")
         .attr("stroke", "#999")
-        .attr("stroke-opacity", 0.6)
+        .attr("stroke-opacity", 0.5)
         .selectAll("line")
         .data(links)
         .join("line")
-            .attr("stroke-width", 1.5) // Fixo e elegante
+            .attr("stroke-width", 1) // Fixo e elegante
             .attr("marker-end", "url(#arrow)");
 
     // Função de Arrastar (Drag)
@@ -341,7 +335,7 @@ Principal Ameaça: ${s.tipo}`;
     // Desenha as Bolinhas (Tamanho Dinâmico)
     const node = svgRede.append("g")
         .attr("stroke", "#fff")
-        .attr("stroke-width", 1.5)
+        .attr("stroke-width", 1)
         .selectAll("circle")
         .data(nodes)
         .join("circle")
@@ -356,7 +350,7 @@ Principal Ameaça: ${s.tipo}`;
         .data(nodes)
         .join("text")
             .text(d => d.id)
-            .attr("x", d => scaleRadius(d.peso) + 5) // Texto se afasta dependendo do tamanho da bola
+            .attr("x", d => scaleRadius(d.peso) + 4) // Texto se afasta dependendo do tamanho da bola
             .attr("y", 3)
             .style("font-size", "10px")
             .style("font-family", "sans-serif")
@@ -376,11 +370,11 @@ Principal Ameaça: ${s.tipo}`;
         node
             .attr("cx", d => {
                 const r = scaleRadius(d.peso);
-                return d.x = Math.max(r, Math.min(widthPadrao - r, d.x));
+                return d.x = Math.max(r+5, Math.min(widthPadrao - r - 5, d.x));
             })
             .attr("cy", d => {
                 const r = scaleRadius(d.peso);
-                return d.y = Math.max(r, Math.min(heightRede - r, d.y));
+                return d.y = Math.max(r + 5, Math.min(heightRede - r - 5, d.y));
             });
 
         // 2. Atualização das Linhas (Matemática da Seta na Borda)
@@ -392,17 +386,17 @@ Principal Ameaça: ${s.tipo}`;
                 // Calcula o ângulo entre os dois pontos
                 const angle = Math.atan2(d.target.y - d.source.y, d.target.x - d.source.x);
                 // Recua o ponto final baseado no raio do alvo + um espacinho (5px)
-                return d.target.x - Math.cos(angle) * (r + 5); 
+                return d.target.x - Math.cos(angle) * (r + 4); 
             })
             .attr("y2", d => {
                 const r = scaleRadius(d.target.peso);
                 const angle = Math.atan2(d.target.y - d.source.y, d.target.x - d.source.x);
-                return d.target.y - Math.sin(angle) * (r + 5);
+                return d.target.y - Math.sin(angle) * (r + 4);
             });
 
         // 3. Atualização dos Textos
         text
-            .attr("x", d => d.x + scaleRadius(d.peso) + 5)
+            .attr("x", d => d.x + scaleRadius(d.peso) + 4)
             .attr("y", d => d.y + 3);
     });
 
